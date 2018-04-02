@@ -5,6 +5,8 @@
 #include <mpi.h>
 
 #define NUM_CHARACTER 26
+#define NLOOPS 3000
+
 char *password_to_md5(char *password) {
     char *md5 = (char *)malloc(33);
     unsigned char digest[16];
@@ -50,20 +52,17 @@ char *number_to_password(unsigned int num) {
 int main() {
 
     
-    // char *password = "linh";
-    // char *md5 = password_to_md5(password);
-    // printf("md5: %s\n", md5);
-    // free(md5);
-    // char* c= number_to_password(30) ;
-    // printf("pass: %s", c) ;
-
-    char *md5_input = "892da3d819056410c05bca7747d22735";
+    char *md5_input = (char *) malloc (sizeof(char)*33) ;
     char *md5_password ;
+    char *current_password ;
+    // char *password = (char *) malloc (sizeof(char)*20) ;
+
     int rank, ntasks;
     unsigned int i, j ;
 
     MPI_Status status ;
-    int finded_pass = 0 ;
+    int is_find = 0 ;
+    int sum_is_find = 0 ;
 
     MPI_Init(NULL, NULL) ;
 
@@ -72,11 +71,27 @@ int main() {
 
     int count, start, stop, remain ;
     int  errorcode ;
-    int Nloops = 1000 ; // cu tinh duoc 1000 vong lap thi kiem tra xem da tim ra pass chua.
+
     unsigned int current = 0 ; // dem so pass da do duoc.
-    char *current_password ;
-    while(!finded_pass) {
-        count = Nloops/ ntasks ; 
+
+    if(rank== 0) {
+
+        printf("\n ------- MD5 DECODE BY LINHPHAN -------\n") ;
+        printf("YOUR MD5 CODE IS: ") ;
+        scanf("%s", md5_input) ;
+        for (j = 1; j < ntasks; j++) {
+            MPI_Send(md5_input,33, MPI_CHAR, j, 102, MPI_COMM_WORLD);
+        }
+    }
+    else {
+        MPI_Recv(md5_input, 33, MPI_CHAR, 0, 102, MPI_COMM_WORLD, &status);
+    }
+    while(!is_find) {
+
+        /* Barrier */
+        MPI_Barrier(MPI_COMM_WORLD) ;
+
+        count = NLOOPS/ ntasks ; 
         start = current + rank*count ;
         stop = start + count ;
 
@@ -85,40 +100,48 @@ int main() {
             
             md5_password = password_to_md5(current_password) ;
             if(strcmp(md5_input, md5_password) == 0) {
-                printf("Findpasssssssssssss: %s in rank %d", current_password, rank) ;
-                finded_pass = 1 ;
-                for(j=0; j<ntasks; j++) {
-                    MPI_Send(&finded_pass, 1, MPI_INT, 0, 102, MPI_COMM_WORLD) ;
-                }
-                // MPI_Bcast(&finded_pass, 1, MPI_INT, rank, MPI_COMM_WORLD) ;
+                printf("Your password is: %s\n", current_password) ;
+                is_find = 1 ;
             }
             free(current_password);
+            free(md5_password) ;
         }
 
-        if(rank==0) { // master tinh so mat khau con lai
+        if(rank==0) { // master caculate remaining password.
             remain = current + count*ntasks ;
-            for(i=remain; i<current + Nloops; i++) {
+            for(i=remain; i<current + NLOOPS; i++) {
                 current_password = number_to_password(i);
                 md5_password = password_to_md5(current_password);
                 if (strcmp(md5_input, md5_password) == 0) {
-                    printf("Findpassssssssssssssssssssssssssss: %s", current_password);
-                    finded_pass = 1;
-                    MPI_Send(&finded_pass, 1, MPI_INT, 0, 102, MPI_COMM_WORLD);
+                    printf("Your password is: %s", current_password);
+                    is_find = 1;
                 }
                 free(current_password);
+                free(md5_password) ;
             }
-            MPI_Recv(&finded_pass, 1, MPI_INT, MPI_ANY_SOURCE, 102, MPI_COMM_WORLD, &status);
-            for (j = 1; j < ntasks; j++) {
-                MPI_Send(&finded_pass, 1, MPI_INT, j, 101, MPI_COMM_WORLD);
-            }
+            
 
         }
-        current += Nloops ;
-        printf("Loops: %d in rank %d \n", current, rank) ;
-        MPI_Recv(&finded_pass,1, MPI_INT, 0, 101, MPI_COMM_WORLD, &status) ;
+        current += NLOOPS ;
+        // printf("Loops: %d in rank %d \n", current, rank) ;
+
+        MPI_Barrier(MPI_COMM_WORLD) ;
+        /* BARRIER */
+
+        MPI_Reduce(&is_find, &sum_is_find, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD ) ;
+        is_find = sum_is_find ;
+        
+        if(rank==0) {
+            for (j = 1; j < ntasks; j++) {
+                MPI_Send(&is_find, 1, MPI_INT, j, 101, MPI_COMM_WORLD);
+            }
+        }
+        else {
+            MPI_Recv(&is_find, 1, MPI_INT, 0, 101, MPI_COMM_WORLD, &status);
+        }
+
     }
-    // free(current_password);
-    // free(md5_password) ;
+    free(md5_input) ;
 
     MPI_Finalize() ;
 
