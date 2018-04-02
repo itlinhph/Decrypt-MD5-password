@@ -4,8 +4,8 @@
 #include <malloc.h>
 #include <mpi.h>
 
-#define NUM_CHARACTER 36
-#define NLOOPS 4000
+#define NUM_CHARACTER 36 // a-z, 0-9 ==> 36 character.
+#define NLOOPS 4000  // divide each 4000 password for worker, then check finded pass.
 
 /*  Convert a number to string  (generate password by number)   */
 char *number_to_password(unsigned int num) {
@@ -40,8 +40,7 @@ char *number_to_password(unsigned int num) {
 }
 
 /* Convert password string to MD5 string */
-char *password_to_md5(char *password)
-{
+char *password_to_md5(char *password) {
     char *md5 = (char *)malloc(33);
     unsigned char digest[16];
     int length = strlen(password);
@@ -98,8 +97,8 @@ int main() {
 
         for(i = start; i<stop; i++) {
             current_password = number_to_password(i) ;
-            
             md5_password = password_to_md5(current_password) ;
+            
             if(strcmp(md5_input, md5_password) == 0) {
                 printf("YOUR PASSWORD: %s\n", current_password) ;
                 printf("\n--------END PROGRAME ---------\n");
