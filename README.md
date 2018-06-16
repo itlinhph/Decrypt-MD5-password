@@ -14,5 +14,5 @@ Video demo: https://youtu.be/9wMHJqPdnrQ
 
 ------------------------------
 #########
-Copyright : LinhPhan
+Copyright : LinhPhan <br/>
 Contact me: fb.com/deluxe.psk
